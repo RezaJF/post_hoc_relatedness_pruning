@@ -28,13 +28,15 @@ graph TD
     J --> K[Create Individual Lookup<br/>Trait values and measurement stats]
     K --> L[Prune with Measurement Logic<br/>Higher count > Lower variance]
     L --> M[Generate Pruned Trait Data<br/>Retain selected individuals]
-    M --> N[Save Enhanced Outputs<br/>Pruned data, description files, logs]
-    N --> O[End]
+    M --> N[Apply Inverse Rank Normalization<br/>Restore normal distribution]
+    N --> O[Save Enhanced Outputs<br/>Pruned data, description files, logs]
+    O --> P[End]
 
     style A fill:#e1f5fe
-    style O fill:#e8f5e8
+    style P fill:#e8f5e8
     style L fill:#fff3e0
-    style N fill:#f3e5f5
+    style N fill:#ffebee
+    style O fill:#f3e5f5
     style E fill:#e8f5e8
     style F fill:#e8f5e8
 ```
