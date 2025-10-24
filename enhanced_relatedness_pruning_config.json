@@ -1,0 +1,49 @@
+{
+  "kinship_file": "/mnt/longGWAS_disk_100GB/long_gwas/analysis_covariates/finngen_R13.kin0",
+  "db_config_path": "/mnt/longGWAS_disk_100GB/long_gwas/Python_scripts/db_config_corrected.json",
+  "output_dir": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.02_enhanced_related_pruned",
+  "trait_files": [
+    {
+      "trait_file_path": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.01.2/Prostate_Specific_Antigen_PSA_males_only_3013603_pre_medication/Prostate_Specific_Antigen_PSA_males_only_3013603_pre_medication_3013603_DF13_blup.tsv",
+      "omop_concept_id": "3013603",
+      "atc_codes": ["A12A", "G04CB", "G04C"],
+      "months_before": 1,
+      "output_file_prefix": "Prostate_Specific_Antigen_PSA_males_only_3013603_pre_medication"
+    },
+    {
+      "trait_file_path": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.01.2/Gamma_Glutamyl_Transferase_GGT_3026910_pre_medication/Gamma_Glutamyl_Transferase_GGT_3026910_pre_medication_3026910_DF13_blup.tsv",
+      "omop_concept_id": "3026910",
+      "atc_codes": ["N03A", "C03", "C10AA"],
+      "months_before": 1,
+      "output_file_prefix": "Gamma_Glutamyl_Transferase_GGT_3026910_pre_medication"
+    },
+    {
+      "trait_file_path": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.01.2/Urate_Moles_volume_in_Serum_or_Plasma_3026493_pre_medication/Urate_Moles_volume_in_Serum_or_Plasma_3026493_pre_medication_3026493_DF13_blup.tsv",
+      "omop_concept_id": "3026493",
+      "atc_codes": ["M04", "C03"],
+      "months_before": 1,
+      "output_file_prefix": "Urate_Moles_volume_in_Serum_or_Plasma_3026493_pre_medication"
+    },
+    {
+      "trait_file_path": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.01.2/Creatinine_Moles_volume_in_Serum_or_Plasma_3020564_pre_medication/Creatinine_Moles_volume_in_Serum_or_Plasma_3020564_pre_medication_3020564_DF13_blup.tsv",
+      "omop_concept_id": "3020564",
+      "atc_codes": ["L04A", "C03", "C09DA", "A02BA01"],
+      "months_before": 1,
+      "output_file_prefix": "Creatinine_Moles_volume_in_Serum_or_Plasma_3020564_pre_medication"
+    },
+    {
+      "trait_file_path": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.01.2/Ferritin_Mass_volume_in_Serum_or_Plasma_3001122_pre_medication/Ferritin_Mass_volume_in_Serum_or_Plasma_3001122_pre_medication_3001122_DF13_blup.tsv",
+      "omop_concept_id": "3001122",
+      "atc_codes": ["V03AC"],
+      "months_before": 1,
+      "output_file_prefix": "Ferritin_Mass_volume_in_Serum_or_Plasma_3001122_pre_medication"
+    },
+    {
+      "trait_file_path": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.01.2/Alkaline_phosphatase_Enzymatic_activity_volume_in_Serum_or_Plasma_3035995_pre_medication/Alkaline_phosphatase_Enzymatic_activity_volume_in_Serum_or_Plasma_3035995_pre_medication_3035995_DF13_blup.tsv",
+      "omop_concept_id": "3035995",
+      "atc_codes": ["N02AA", "N02A", "N05", "N03A", "N06D", "N06AX", "C03CA", "N06", "N06A"],
+      "months_before": 1,
+      "output_file_prefix": "Alkaline_phosphatase_Enzymatic_activity_volume_in_Serum_or_Plasma_3035995_pre_medication"
+    }
+  ]
+}
