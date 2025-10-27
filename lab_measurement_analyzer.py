@@ -78,16 +78,12 @@ class LabMeasurementAnalyzer:
 
         try:
             # Execute R script and get results
-            result_df = self._execute_r_script(r_script, omop_concept_id, atc_codes, months_before)
+            result_df = self._execute_r_script(r_script)
             self.logger.info(f"Retrieved measurement statistics for {len(result_df)} individuals")
             return result_df
 
         except Exception as e:
             self.logger.error(f"Failed to get measurement statistics: {str(e)}")
-            # Check if it's a database connection issue
-            if "No files found that match the pattern" in str(e):
-                self.logger.warning("Database connection issue detected. Using fallback mock data.")
-                return self._get_fallback_measurement_statistics(omop_concept_id, atc_codes, months_before)
             raise
 
     def _create_r_script(self, omop_concept_id: str, atc_codes: List[str],
@@ -104,18 +100,22 @@ suppressPackageStartupMessages(library(jsonlite))
 
 # Load database configuration
 db_config_path <- "{self.db_config_path}"
-conn <- connect_fgdata(db_config_path)
+suppressMessages({{
+  conn <- connect_fgdata(db_config_path)
+}})
 
 # Get measurements before drug
-measurements <- get_measurements_before_drug(
-  conn = conn,
-  lablist = "{omop_concept_id}",
-  druglist = c({atc_codes_str}),
-  months_before = {months_before},
-  covariates = conn$cov_pheno,
-  covariate_cols = c("SEX_IMPUTED", "AGE_AT_DEATH_OR_END_OF_FOLLOWUP"),
-  winsorize_pct = 0.01
-)
+suppressWarnings({{
+  measurements <- get_measurements_before_drug(
+    conn = conn,
+    lablist = "{omop_concept_id}",
+    druglist = c({atc_codes_str}),
+    months_before = {months_before},
+    covariates = conn$cov_pheno,
+    covariate_cols = c("SEX_IMPUTED", "AGE_AT_DEATH_OR_END_OF_FOLLOWUP"),
+    winsorize_pct = 0.01
+  )
+}})
 
 # Add time_to_drug information
 all_fg_ids <- unique(measurements$FINNGENID)
@@ -152,16 +152,16 @@ measurement_stats <- measurements %>%
     measurement_std = ifelse(is.na(measurement_std), 0, measurement_std)
   )
 
-# Write results to temporary file
-temp_file <- tempfile(fileext = ".csv")
+# Write results to a specific temp file that Python can access
+temp_file <- "/tmp/measurement_stats_{omop_concept_id}.csv"
 write.csv(measurement_stats, temp_file, row.names = FALSE)
 
-# Output the file path for Python to read
-cat(temp_file)
+# Output the file path for Python to read (must be last output)
+cat(temp_file, "\n", sep="")
 '''
         return r_script
 
-    def _execute_r_script(self, r_script: str, omop_concept_id: str, atc_codes: List[str], months_before: int) -> pd.DataFrame:
+    def _execute_r_script(self, r_script: str) -> pd.DataFrame:
         """Execute R script and return results as DataFrame."""
         # Create temporary file for R script
         with tempfile.NamedTemporaryFile(mode='w', suffix='.R', delete=False) as f:
@@ -177,10 +177,25 @@ cat(temp_file)
                 check=True
             )
 
-            # Get the output file path from R
-            # R script might output debug info, so we need to extract the last line
+            # Parse output to find the CSV file path
+            # The R script outputs the file path as the last line
             output_lines = result.stdout.strip().split('\n')
-            output_file = output_lines[-1].strip()  # Get the last line which should be the file path
+
+            # Debug logging
+            self.logger.debug(f"R script output lines: {output_lines}")
+
+            # Find the line that looks like a file path (ends with .csv)
+            output_file = None
+            for line in reversed(output_lines):
+                line = line.strip()
+                if line.endswith('.csv'):
+                    output_file = line
+                    self.logger.debug(f"Found CSV file path: {output_file}")
+                    break
+
+            if not output_file:
+                self.logger.error(f"R script stdout: {result.stdout}")
+                raise FileNotFoundError(f"Could not find CSV file path in R output")
 
             if not os.path.exists(output_file):
                 raise FileNotFoundError(f"R script output file not found: {output_file}")
@@ -195,20 +210,22 @@ cat(temp_file)
             return df
 
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"R script execution failed: {e.stderr}")
-            # Check if it's a database connection issue
-            if "No files found that match the pattern" in str(e.stderr):
-                self.logger.warning("Database connection issue detected. Using fallback mock data.")
-                return self._get_fallback_measurement_statistics(omop_concept_id, atc_codes, months_before)
+            self.logger.error(f"R script execution failed with stderr: {e.stderr}")
+            self.logger.error(f"R script stdout: {e.stdout}")
+            # Save the R script for debugging
+            debug_script_path = "/tmp/debug_r_script.R"
+            with open(debug_script_path, 'w') as f:
+                f.write(r_script)
+            self.logger.error(f"R script saved to {debug_script_path} for debugging")
             raise
-        except FileNotFoundError as e:
-            self.logger.warning(f"R script output file not found, likely due to database connection issues. Using fallback mock data.")
-            return self._get_fallback_measurement_statistics(omop_concept_id, atc_codes, months_before)
         except Exception as e:
             self.logger.error(f"Failed to execute R script: {str(e)}")
-            # If it's any other error, also try fallback
-            self.logger.warning("R script execution failed, using fallback mock data.")
-            return self._get_fallback_measurement_statistics(omop_concept_id, atc_codes, months_before)
+            # Save the R script for debugging
+            debug_script_path = "/tmp/debug_r_script.R"
+            with open(debug_script_path, 'w') as f:
+                f.write(r_script)
+            self.logger.error(f"R script saved to {debug_script_path} for debugging")
+            raise
         finally:
             # Clean up R script file
             if os.path.exists(r_script_path):
@@ -238,41 +255,6 @@ cat(temp_file)
 
         self.logger.info(f"Created measurement lookup for {len(lookup)} individuals")
         return lookup
-
-    def _get_fallback_measurement_statistics(self, omop_concept_id: str, atc_codes: List[str],
-                                            months_before: int) -> pd.DataFrame:
-        """
-        Generate fallback measurement statistics when database connection fails.
-        Creates realistic mock data for testing purposes.
-        """
-        self.logger.warning("Using fallback measurement statistics due to database connection issues")
-
-        # Generate mock data with realistic patterns
-        np.random.seed(42)  # For reproducible results
-
-        # Create a reasonable number of individuals
-        n_individuals = np.random.randint(1000, 5000)
-        finngen_ids = [f"FG{i:08d}" for i in range(1, n_individuals + 1)]
-
-        # Generate measurement counts (most people have 1-10 measurements, some have more)
-        measurement_counts = np.random.poisson(3, n_individuals) + 1
-        measurement_counts = np.clip(measurement_counts, 1, 20)  # Cap at 20
-
-        # Generate variances (lower for people with more measurements)
-        measurement_variances = np.random.exponential(0.5, n_individuals)
-        measurement_variances = measurement_variances / (1 + measurement_counts * 0.1)  # Lower variance for more measurements
-
-        # Create DataFrame with correct column names
-        fallback_df = pd.DataFrame({
-            'FINNGENID': finngen_ids,
-            'n_measurements': measurement_counts,
-            'measurement_variance': measurement_variances,
-            'measurement_mean': np.random.normal(0, 1, n_individuals),
-            'measurement_std': np.sqrt(measurement_variances)
-        })
-
-        self.logger.info(f"Generated fallback data for {len(fallback_df)} individuals")
-        return fallback_df
 
     def compare_individuals_by_measurements(self, individual1: Tuple[str, str],
                                           individual2: Tuple[str, str],

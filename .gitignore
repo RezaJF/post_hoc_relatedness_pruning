@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data files (too large for git)
+*.kin0
+*.tsv
+*.csv
+*.parquet
+
+# Output directories
+test_output/
+output/
+results/
+
+# Logs
+*.log
+
+# R temporary files
+.Rhistory
+.RData
+.Rproj.user
+
+# Temporary files
+/tmp/
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db

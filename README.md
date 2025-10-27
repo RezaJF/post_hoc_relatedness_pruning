@@ -1,6 +1,6 @@
-# Enhanced Relatedness Pruning Workflow for GWAS Analysis
+# Post-hoc Relatedness Pruning Workflow for GWAS Analysis
 
-The pruning is based on pre-calculated kinship coefficients and lab measurement-based prioritization criteria to mitigate inflation of test statistics, particularly across rare variants, due to cryptic relatedness.
+A robust, modular Python workflow for removing closely related individuals from large cohorts after phenotype calculation. The pruning is based on pre-calculated kinship coefficients and lab measurement-based prioritization criteria to mitigate inflation of test statistics, particularly across rare variants, due to cryptic relatedness.
 
 ## Overview
 
@@ -28,15 +28,13 @@ graph TD
     J --> K[Create Individual Lookup<br/>Trait values and measurement stats]
     K --> L[Prune with Measurement Logic<br/>Higher count > Lower variance]
     L --> M[Generate Pruned Trait Data<br/>Retain selected individuals]
-    M --> N[Apply Inverse Rank Normalization<br/>Restore normal distribution]
-    N --> O[Save Enhanced Outputs<br/>Pruned data, description files, logs]
-    O --> P[End]
+    M --> N[Save Enhanced Outputs<br/>Pruned data, description files, logs]
+    N --> O[End]
 
     style A fill:#e1f5fe
-    style P fill:#e8f5e8
+    style O fill:#e8f5e8
     style L fill:#fff3e0
-    style N fill:#ffebee
-    style O fill:#f3e5f5
+    style N fill:#f3e5f5
     style E fill:#e8f5e8
     style F fill:#e8f5e8
 ```
@@ -46,7 +44,9 @@ graph TD
 ### Prerequisites
 
 - Python 3.7 or higher
-- Required packages (see `requirements.txt`)
+- R 4.0 or higher with the `fganalysis` package installed
+- Required Python packages (see `requirements.txt`)
+- Access to FinnGen parquet data files
 
 ### Setup
 
@@ -90,16 +90,9 @@ Create an enhanced JSON configuration file:
 Then run:
 
 ```bash
-# Default: with inverse rank normalization (recommended)
 python enhanced_relatedness_pruning.py \
     --config enhanced_config.json \
     --output-dir /path/to/output
-
-# Disable inverse rank normalization
-python enhanced_relatedness_pruning.py \
-    --config enhanced_config.json \
-    --output-dir /path/to/output \
-    --no-inverse-rank-normalize
 ```
 
 ### Legacy Single Trait File Processing
@@ -119,7 +112,6 @@ python relatedness_pruning.py \
 - `--output-dir`: Output directory for results (required)
 - `--log-level`: Logging level (DEBUG, INFO, WARNING, ERROR, default: INFO)
 - `--log-file`: Optional log file path
-- `--no-inverse-rank-normalize`: Disable inverse rank normalization after pruning (default: enabled)
 
 ## Input Data Formats
 
@@ -225,29 +217,20 @@ Consider a family with three siblings (A, B, C) with measurement statistics:
 
 If counts were equal (e.g., both A and C had 8 measurements), then Individual C would be retained (lower variance: 0.08 vs 0.15).
 
-### Inverse Rank Normalization (Default)
+### Rank Normalization (Optional)
 
-The enhanced workflow includes **inverse rank normalization** as the default behavior after removing related individuals. This step is crucial because:
+The workflow includes an optional rank normalization feature that can be applied to trait values after pruning. When enabled with the `--rank-normalize` flag:
 
-1. **Distribution disruption**: Removing related individuals changes the original trait distribution
-2. **Statistical consistency**: Inverse rank normalization restores a normal distribution for downstream GWAS analysis
-3. **Default behavior**: Applied automatically unless disabled with `--no-inverse-rank-normalize`
+1. **Non-missing values** are converted to ranks using the average method
+2. **Missing values** remain as missing (NA)
+3. **Rank transformation** helps reduce the impact of extreme values and outliers
 
-**Process**:
-1. **Rank the remaining values** using average method
-2. **Convert ranks to quantiles** (0 to 1 range)
-3. **Apply inverse normal CDF** to restore normal distribution
-4. **Preserve missing values** as NA
+This is particularly useful for:
+- **Non-normal trait distributions** (skewed, heavy-tailed)
+- **Outlier sensitivity** reduction
+- **Robust statistical analysis** preparation
 
-**Mathematical transformation**:
-- Ranks → Quantiles: `(rank - 0.5) / n`
-- Quantiles → Normal: `norm.ppf(quantile)`
-
-**Example**: If trait values are [1.2, 3.4, 2.1, 5.8, NA], the inverse rank-normalized values become approximately [-0.67, 0.67, -0.21, 1.28, NA].
-
-### Legacy Rank Normalization (Optional)
-
-The workflow also supports traditional rank normalization for comparison purposes, though this is not the default in the enhanced pipeline.
+**Example**: If trait values are [1.2, 3.4, 2.1, 5.8, NA], the rank-normalized values become [1.5, 3.0, 2.0, 4.0, NA].
 
 ## Module Structure
 
@@ -378,14 +361,39 @@ The workflow performs several validation checks:
 - Data type validation
 - Relationship type validation
 
+## Handling of Missing Individuals
+
+### FINNGENIDs Not Found in Kinship File
+
+When processing trait files, some FINNGENIDs may not be present in the kinship file. The workflow handles these cases as follows:
+
+1. **Detection**: During the validation phase, the system identifies all individuals present in the trait file but missing from the kinship file.
+
+2. **Automatic Retention**: Individuals not found in the kinship file are **automatically retained** in the pruned output because:
+   - They have no known relatives in the dataset (no kinship coefficients)
+   - They cannot form related pairs requiring pruning
+   - They are effectively "unrelated" by definition
+
+3. **Logging**: Missing individuals are:
+   - Counted and reported in the log files
+   - Listed individually if the count is small (< 100)
+   - Summarized with total count if numerous
+
+4. **No Impact on Pruning**: These individuals:
+   - Do not participate in the relationship graph
+   - Are not considered for removal
+   - Appear in the final pruned output with their original trait values (inverse rank normalized if enabled)
+
+This behavior ensures that individuals without kinship information (e.g., new samples, technical replicates, or samples excluded from kinship calculation) are preserved in the analysis while still removing known related individuals.
+
 ## Version History
 
-- **v2.1.0**: Enhanced release with inverse rank normalization
+- **v2.1.0**: Enhanced release with inverse rank normalization and R integration
+  - **Full R fganalysis integration** for accessing lab measurement data
   - **Inverse rank normalization** as default behavior after pruning
-  - **Distribution restoration** for downstream GWAS analysis
-  - **Command-line control** with `--no-inverse-rank-normalize` option
-  - **Organized codebase** structure for GitHub deployment
-  - **Enhanced documentation** with mathematical details
+  - **Measurement-based prioritization** exclusively (removed trait-based fallback)
+  - **Enhanced configuration** with database paths and output directory specification
+  - **Improved error handling** and debugging capabilities
 
 - **v2.0.0**: Enhanced release with measurement-based prioritization
   - Lab measurement integration with R `fganalysis` package

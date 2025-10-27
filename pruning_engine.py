@@ -164,79 +164,29 @@ class PruningEngine:
         """
         Compare two individuals and determine which is better to retain.
 
-        Uses measurement-based prioritization if lab_analyzer is available,
-        otherwise falls back to trait-based comparison.
+        Uses measurement-based prioritization exclusively.
 
         Args:
             individual1: First individual (FID, IID)
             individual2: Second individual (FID, IID)
             individual_lookup: Dictionary mapping individuals to their data
-            measurement_lookup: Optional dictionary with measurement statistics
+            measurement_lookup: Dictionary with measurement statistics (required)
 
         Returns:
             String indicating which individual is better or if it's a tie
         """
-        # Use measurement-based comparison if available
-        if self.lab_analyzer and measurement_lookup is not None:
-            return self.lab_analyzer.compare_individuals_by_measurements(
-                individual1, individual2, measurement_lookup
-            )
+        # Measurement-based comparison is mandatory
+        if not self.lab_analyzer or measurement_lookup is None:
+            raise ValueError("Measurement-based comparison is required but lab_analyzer or measurement_lookup is not available")
 
-        # Fallback to trait-based comparison
-        data1 = individual_lookup[individual1]
-        data2 = individual_lookup[individual2]
-
-        has_trait1 = data1['has_trait_value']
-        has_trait2 = data2['has_trait_value']
-
-        # Rule 1: Non-missing trait value > missing trait value
-        if has_trait1 and not has_trait2:
-            return "individual1_better"
-        elif not has_trait1 and has_trait2:
-            return "individual2_better"
-        elif has_trait1 and has_trait2:
-            # Rule 2: Both have trait values, compare absolute values
-            trait_value1 = data1['trait_value']
-            trait_value2 = data2['trait_value']
-
-            abs_value1 = abs(trait_value1)
-            abs_value2 = abs(trait_value2)
-
-            if abs_value1 > abs_value2:
-                return "individual1_better"
-            elif abs_value2 > abs_value1:
-                return "individual2_better"
-            else:
-                # Rule 3: Tie in absolute values, use lexicographic IID comparison
-                iid1 = data1['iid']
-                iid2 = data2['iid']
-
-                if iid1 < iid2:
-                    return "individual1_better"
-                elif iid2 < iid1:
-                    return "individual2_better"
-                else:
-                    # This should not happen if IIDs are unique
-                    self.logger.warning(f"Identical IIDs found: {iid1} for individuals {individual1} and {individual2}")
-                    return "tie"
-        else:
-            # Rule 3: Both missing trait values, use lexicographic IID comparison
-            iid1 = data1['iid']
-            iid2 = data2['iid']
-
-            if iid1 < iid2:
-                return "individual1_better"
-            elif iid2 < iid1:
-                return "individual2_better"
-            else:
-                # This should not happen if IIDs are unique
-                self.logger.warning(f"Identical IIDs found: {iid1} for individuals {individual1} and {individual2}")
-                return "tie"
+        return self.lab_analyzer.compare_individuals_by_measurements(
+            individual1, individual2, measurement_lookup
+        )
 
     def create_pruned_trait_data(self, trait_df: pd.DataFrame,
                                retained_individuals: Set[Tuple[str, str]],
                                rank_normalize: bool = False,
-                               inverse_rank_normalize: bool = False) -> pd.DataFrame:
+                               inverse_rank_normalize: bool = True) -> pd.DataFrame:
         """
         Create pruned trait data with only retained individuals.
 
@@ -244,7 +194,7 @@ class PruningEngine:
             trait_df: Original trait DataFrame
             retained_individuals: Set of individuals to retain
             rank_normalize: Whether to apply rank normalization to trait values
-            inverse_rank_normalize: Whether to apply inverse rank normalization to trait values
+            inverse_rank_normalize: Whether to apply inverse rank normalization (default True)
 
         Returns:
             DataFrame with only retained individuals
@@ -272,22 +222,22 @@ class PruningEngine:
             else:
                 self.logger.warning("No non-missing values found for rank normalization")
 
-        # Apply inverse rank normalization if requested
-        if inverse_rank_normalize:
+        # Apply inverse rank normalization if requested (default behavior for enhanced pipeline)
+        elif inverse_rank_normalize:
             self.logger.info("Applying inverse rank normalization to trait values...")
             trait_column = pruned_df.attrs.get('trait_column', pruned_df.columns[2])
 
             # Get non-missing values for inverse rank normalization
             non_missing_mask = pruned_df[trait_column].notna()
             if non_missing_mask.sum() > 0:
-                # Apply inverse rank normalization (convert ranks back to normal distribution)
-                from scipy.stats import norm
-                ranks = pruned_df.loc[non_missing_mask, trait_column]
+                from scipy import stats
+                # Convert to ranks
+                ranks = pruned_df.loc[non_missing_mask, trait_column].rank(method='average')
+                # Scale ranks to (0, 1) interval
                 n = len(ranks)
-                # Convert ranks to quantiles (0 to 1)
-                quantiles = (ranks - 0.5) / n
-                # Convert quantiles to normal distribution using inverse CDF
-                pruned_df.loc[non_missing_mask, trait_column] = norm.ppf(quantiles)
+                scaled_ranks = (ranks - 0.5) / n
+                # Apply inverse normal transformation
+                pruned_df.loc[non_missing_mask, trait_column] = stats.norm.ppf(scaled_ranks)
                 self.logger.info(f"Inverse rank normalization applied to {non_missing_mask.sum()} non-missing values")
             else:
                 self.logger.warning("No non-missing values found for inverse rank normalization")

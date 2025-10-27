@@ -1,0 +1,21 @@
+{
+  "kinship_file": "/path/to/kinship.kin0",
+  "db_config_path": "/path/to/db_config.json",
+  "output_dir": "/path/to/output",
+  "trait_files": [
+    {
+      "trait_file_path": "/path/to/trait1.tsv",
+      "omop_concept_id": "3013603",
+      "atc_codes": ["A12A", "G04CB", "G04C"],
+      "months_before": 1,
+      "output_file_prefix": "Prostate_Specific_Antigen_PSA"
+    },
+    {
+      "trait_file_path": "/path/to/trait2.tsv",
+      "omop_concept_id": "3026910",
+      "atc_codes": ["N03A", "C03", "C10AA"],
+      "months_before": 1,
+      "output_file_prefix": "Gamma_Glutamyl_Transferase_GGT"
+    }
+  ]
+}

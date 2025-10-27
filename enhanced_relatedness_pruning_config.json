@@ -1,7 +1,7 @@
 {
   "kinship_file": "/mnt/longGWAS_disk_100GB/long_gwas/analysis_covariates/finngen_R13.kin0",
-  "db_config_path": "/mnt/longGWAS_disk_100GB/long_gwas/Python_scripts/db_config_corrected.json",
-  "output_dir": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.02_enhanced_related_pruned",
+  "db_config_path": "/mnt/longGWAS_disk_100GB/long_gwas/Github_clones/fganalysis-r/config/db_config.json",
+  "output_dir": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.03_post_hoc_relatedness_pruned",
   "trait_files": [
     {
       "trait_file_path": "/mnt/longGWAS_disk_100GB/long_gwas/00.Longitudinal_lab_values_GWAS_inputs/r.01.2/Prostate_Specific_Antigen_PSA_males_only_3013603_pre_medication/Prostate_Specific_Antigen_PSA_males_only_3013603_pre_medication_3013603_DF13_blup.tsv",
